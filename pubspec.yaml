@@ -39,6 +39,8 @@ dependencies:
   video_player: ^2.8.2
   tflite_flutter: ^0.10.4
   http: ^1.2.1
+  image_picker: ^1.0.7
+  permission_handler: ^9.2.0
 
 dev_dependencies:
   flutter_test:
