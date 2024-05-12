@@ -49,7 +49,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Example JSON and ListView'),
+        title: const Text('Demo App Ẩn Thông Tin Vào Ảnh'),
       ),
       body: Column(
         children: <Widget>[
@@ -59,10 +59,9 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) =>
-                        CameraApp(
-                          cameras: cameras,
-                        ),
+                    builder: (context) => CameraApp(
+                      cameras: cameras,
+                    ),
                   ),
                 );
               },
@@ -73,15 +72,24 @@ class _MyHomePageState extends State<MyHomePage> {
             color: Colors.yellow,
             child: ElevatedButton(
               onPressed: () {
-                uploadImage();
+                decodeImage();
               },
-              child: Text('Test up ảnh'),
+              child: const Text('Decode Ảnh'),
             ),
           ),
+          Container(
+            color: Colors.yellow,
+            child: ElevatedButton(
+              onPressed: () {
+                encodeImage("Ho va ten:  NKDUY, MSSV: 2222");
+              },
+              child: const Text('Encode Ảnh'),
+            ),
+          ),
+          const Divider(),
+          const Text('Hướng camera về phía mã QR'),
           Divider(),
-          Text('Hướng camera về phía mã QR'),
-          Divider(),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               Icon(Icons.flash_on),
@@ -91,18 +99,18 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           Center(
             child: _imageFile == null
-                ? Text('No image selected.')
+                ? const Text('No image selected.')
                 : Image.file(_imageFile!),
           ),
           Center(
             child: _imageFile == null
-                ? Text('No image selected.')
+                ? const Text('No image selected.')
                 : ElevatedButton(
-              onPressed: () {
-                uploadImage();
-              },
-              child: Text('Up lên server'),
-            ),
+                    onPressed: () {
+                      //uploadImage("Hãy mã hóa đi");
+                    },
+                    child: const Text('Up lên server'),
+                  ),
           ),
         ],
       ),
@@ -110,7 +118,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // This trailing comma makes auto-formatting nicer for build methods.
   }
 
-  uploadImage() async {
+  decodeImage() async {
     //final ImagePicker picker = ImagePicker();
     // Pick an image.
     // UploadTask uploadTask;
@@ -127,7 +135,7 @@ class _MyHomePageState extends State<MyHomePage> {
         setState(() {
           _imageFile = File(image.path);
         });
-        await uploadServer(_imageFile!);
+        await sendImageDecode(_imageFile!);
       } else {
         print('No Image Path Received');
       }
@@ -137,12 +145,42 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
-  Future<void> uploadServer(File imageFile) async {
+  encodeImage(String data) async {
+    //final ImagePicker picker = ImagePicker();
+    // Pick an image.
+    // UploadTask uploadTask;
+    //Check Permissions
+    await Permission.photos.request();
+    var permissionStatus = await Permission.photos.status;
+    if (permissionStatus.isGranted) {
+      //Select Image
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      var file = File(image!.path);
+      if (image != null) {
+        //Upload to Firebase
+        print(file.path);
+        setState(() {
+          _imageFile = File(image.path);
+        });
+        await sendImageEncode(_imageFile!, data);
+      } else {
+        print('No Image Path Received');
+      }
+    } else {
+      print('Permission not granted. Try Again with permission access');
+    }
+  }
+
+  Future<void> sendImageEncode(File imageFile, String data) async {
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://192.168.1.5:8000/upload/'),
+      // Uri.parse('http://192.168.1.5:8000/upload/'),
+      Uri.parse('http://192.168.4.139:8000/encode/'),
     );
-    request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+    // Thêm dữ liệu vào request
+    request.fields['data'] = data;
+    request.files
+        .add(await http.MultipartFile.fromPath('file', imageFile.path));
 
     try {
       var streamedResponse = await request.send();
@@ -153,9 +191,48 @@ class _MyHomePageState extends State<MyHomePage> {
         print('Image uploaded successfully');
         // Xử lý thành công
       } else {
-        print('Failed to upload image. Error code: ${streamedResponse.statusCode}');
+        print(
+            'Failed to upload image. Error code: ${streamedResponse.statusCode}');
         setState(() {
-          _errorMessage = 'Failed to upload image. Error code: ${streamedResponse.statusCode}';
+          _errorMessage =
+              'Failed to upload image. Error code: ${streamedResponse.statusCode}';
+        });
+        // Xử lý lỗi
+      }
+    } catch (e) {
+      print('Failed to upload image. Error: $e');
+      setState(() {
+        _errorMessage = 'Failed to upload image. Error: $e';
+      });
+      // Xử lý lỗi
+    }
+  }
+
+  Future<void> sendImageDecode(File imageFile) async {
+    var request = http.MultipartRequest(
+      'POST',
+      // Uri.parse('http://192.168.1.5:8000/upload/'),
+      Uri.parse('http://192.168.4.139:8000/decode/'),
+    );
+    // Thêm dữ liệu vào request
+
+    request.files
+        .add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+    try {
+      var streamedResponse = await request.send();
+
+      if (streamedResponse.statusCode == 200) {
+        var responseString = await streamedResponse.stream.bytesToString();
+        print('Response: $responseString');
+        print('Image uploaded successfully');
+        // Xử lý thành công
+      } else {
+        print(
+            'Failed to upload image. Error code: ${streamedResponse.statusCode}');
+        setState(() {
+          _errorMessage =
+          'Failed to upload image. Error code: ${streamedResponse.statusCode}';
         });
         // Xử lý lỗi
       }
